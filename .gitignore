@@ -1,6 +1,12 @@
 # Prerequisites
 *.d
 
+# clion
+.idea
+*.iml
+*.xml
+cmake-build-debug
+
 # Object files
 *.o
 *.ko
