@@ -84,20 +84,20 @@ StudentPtr_MS FindBySno_MS(ArrayListPtr students, Integer sno);
 StudentPtr_MS FindByName_MS(ArrayListPtr students, String name);
 
 /**
- * 根据学生编号进行
+ * 根据学生编号进行排序
  *
  * @param students 所有学生的集合
  * @param order 排序方式，默认值为升序排序
- * @return  排序完成的新的学生集合
+ * @return 排序完成的新的学生集合
  */
 void SortBySno_MS(ArrayListPtr students, Order_MS order);
 
 /**
- * 根据学生编号进行
+ * 根据学生姓名进行排序
  *
  * @param students 所有学生的集合
  * @param order 排序方式，默认值为升序排序
- * @return
+ * @return 排序完成的新的学生集合
  */
 void SortByName_MS(ArrayListPtr students, Order_MS order);
 
@@ -129,12 +129,14 @@ bool SyncInfo_MS(ArrayListPtr students, String url);
 
 /**
  * 系统化功能菜单
+ *
+ * @param output 输出流
  */
-void ShowMenu_MS(void);
+void ShowMenu_MS(FILE *output);
 
 /**
  * 学生信息系统驱动程序
  */
-void StudentInfoSystemDeriver_MS(void);
+void StudentInfoSystemDriver_MS(void);
 
 #endif //C_WORK_STUDENT_SYS_H

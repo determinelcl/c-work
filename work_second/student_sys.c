@@ -25,16 +25,55 @@ ArrayListPtr LoadJsonToTheMemory(String json);
  */
 void AssignStrValue_MS(String field, const cJSON *json);
 
+/**
+ * 将Json中匹配的Integer字段的数据赋值给相应的Integer字段
+ *
+ * @param field 接受赋值的字段
+ * @param json 数据载体结构对象
+ */
 void AssignIntValue_MS(Integer *field, const cJSON *json);
 
+/**
+ * 用于判断集合是否为空，如果为NULL则说明是未从数据库文件中加载数据
+ *
+ * @param students 全体学生集合
+ */
 void AssertDBOpened_MS(ArrayListPtr students);
 
+/**
+ * 打印表头
+ *
+ * @param output 输出流
+ */
 void ShowTableHeader_MS(FILE *output);
 
+/**
+ * 输出表的信息
+ *
+ * @param students 全体学生信息集合
+ * @param index 输出的第几个学生信息的索引值
+ * @param output 输出流
+ */
 void ShowTableBodyInfo_MS(ArrayListPtr students, int index, FILE *output);
 
-int CompareByName_MS(StudentPtr_MS student, String name);
+/**
+ * 根据学生名称进行比较
+ *
+ * @param currName 当前的学生姓名
+ * @param nextName 下一个学生的姓名
+ * @return currName > nextName  返回 1
+ *         currName == nextName 返回 0
+ *         currName < nextName  返回-1
+ */
+int CompareByName_MS(String currName, String nextName);
 
+/**
+ * 根据学号查询学生信息在集合中的索引位置
+ *
+ * @param students 全体学生集合
+ * @param sno 学生学号
+ * @return 学生信息在集合中的索引位置
+ */
 int IndexOf_MS(ArrayListPtr students, Integer sno);
 
 /**
@@ -64,8 +103,6 @@ ArrayListPtr OpenStudentDB_MS(String url) {
         printf("数据库文件挂起失败！可能会使您的数据遭到破坏");
 
     return LoadJsonToTheMemory(json);
-
-
 }
 
 ArrayListPtr LoadJsonToTheMemory(String json) {
@@ -207,12 +244,12 @@ StudentPtr_MS FindBySno_MS(ArrayListPtr students, Integer sno) {
     return NULL;
 }
 
-int CompareByName_MS(StudentPtr_MS student, String name) {
-    size_t first = strlen(student->name);
-    size_t second = strlen(name);
+int CompareByName_MS(String currName, String nextName) {
+    size_t first = strlen(currName);
+    size_t second = strlen(nextName);
     if (first != second) return false;
 
-    return strncmp(student->name, name, first);
+    return strncmp(currName, nextName, first);
 }
 
 StudentPtr_MS FindByName_MS(ArrayListPtr students, String name) {
@@ -223,7 +260,7 @@ StudentPtr_MS FindByName_MS(ArrayListPtr students, String name) {
         if (!studentTemp) continue;
 
 
-        if (CompareByName_MS(studentTemp, name) == 0)
+        if (CompareByName_MS(studentTemp->name, name) == 0)
             return studentTemp;
     }
     return NULL;
@@ -252,7 +289,7 @@ void SortByName_MS(ArrayListPtr students, Order_MS order) {
             StudentPtr_MS curr = get_AL(students, i);
             StudentPtr_MS next = get_AL(students, j);
 
-            int compareNameRs = CompareByName_MS(curr, next->name);
+            int compareNameRs = CompareByName_MS(curr->name, next->name);
             bool compareRs = compareNameRs == 1;
             if (order == ASC) compareRs = compareNameRs == -1;
 
@@ -309,14 +346,55 @@ bool SyncInfo_MS(ArrayListPtr students, String url) {
         return false;
     }
 
+    // 创建Json对象的根对象
+    cJSON *root = cJSON_CreateObject();
+    cJSON *rows = cJSON_CreateArray();
+    cJSON_AddItemToObject(root, STUDENTS_MS, rows);
+
+    cJSON *row;
+    for (int i = 0; i < students->size; ++i) {
+        row = cJSON_CreateObject();
+        cJSON_AddItemToArray(rows, row);
+
+        // 将结构数据写入到Json对象中
+        StudentPtr_MS studentTemp = get_AL(students, i);
+        cJSON_AddItemToObject(row, SNO_MS,     cJSON_CreateNumber(studentTemp->no));
+        cJSON_AddItemToObject(row, NAME_MS,    cJSON_CreateString(studentTemp->name));
+        cJSON_AddItemToObject(row, AGE_MS,     cJSON_CreateNumber(studentTemp->no));
+        cJSON_AddItemToObject(row, YEAR_MS,    cJSON_CreateString(studentTemp->year));
+        cJSON_AddItemToObject(row, ADDRESS_MS, cJSON_CreateString(studentTemp->address));
+        cJSON_AddItemToObject(row, PHONE_MS,   cJSON_CreateString(studentTemp->phone));
+        cJSON_AddItemToObject(row, EMAIL_MS,   cJSON_CreateString(studentTemp->email));
+    }
+
+    // 向文件之中写入数据文件
+    String jsonResult = cJSON_Print(root);
+    fprintf(db, "%s", jsonResult);
+
+    if (fclose(db) != 0) {
+        fprintf(stderr, "数据库链接未成功关闭，有可能会对您的数据造成威胁");
+    }
 
     return true;
 }
 
-void ShowMenu_MS(void) {
-
+void ShowMenu_MS(FILE *output) {
+    fprintf(output, "===========================================================\n");
+    fprintf(output, "|                  欢迎使用学生信息系统                      |\n");
+    fprintf(output, "|              1）链接数据库                                |\n");
+    fprintf(output, "|              2）录入学生信息                              |\n");
+    fprintf(output, "|              3）浏览全部学生信息                           |\n");
+    fprintf(output, "|              4）分页浏览学生信息                           |\n");
+    fprintf(output, "|              5）根据学号查询学生信息                       |\n");
+    fprintf(output, "|              6）根据姓名查询学生信息                       |\n");
+    fprintf(output, "|              7）根据学号对学生信息进行排序                  |\n");
+    fprintf(output, "|              8）根据姓名对学生信息进行排序                  |\n");
+    fprintf(output, "|              9）根据学号更新学生信息                       |\n");
+    fprintf(output, "|             10）根据学号删除学生信息                       |\n");
+    fprintf(output, "|             11）同步数据库数据信息                         |\n");
+    fprintf(output, "===========================================================\n");
 }
 
-void StudentInfoSystemDeriver_MS(void) {
-    ShowMenu_MS();
+void StudentInfoSystemDriver_MS(void) {
+    ShowMenu_MS(stdout);
 }
