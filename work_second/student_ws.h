@@ -11,6 +11,7 @@
 #include <assert.h>
 
 #define EMPTY_SNO -1
+#define NewString(size) malloc(sizeof(char) * size)
 
 
 typedef char *String;

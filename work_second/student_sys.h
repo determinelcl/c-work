@@ -17,10 +17,12 @@
  * 封装分页显示的结构体
  */
 typedef struct Page_MS {
-    int current;        // 当前页数
-    int count;          // 总共多少页
+    int currPage;       // 当前页数
+    int totalPages;     // 总共多少页
     int limit;          // 每页的信息的数量
-    int pageSize;            // 当前页数据的数量
+    int pageSize;       // 当前页数据的数量
+    bool first;         // 是否是第一页
+    bool last;          // 是否是最后一页
 } Page_MS;
 
 
@@ -63,7 +65,7 @@ void ShowInfo_MS(ArrayListPtr students, FILE *output);
  * @param page 分页参数
  * @param output 输出流
  */
-void ShowInfoPage_MS(ArrayListPtr students, Page_MS page, FILE *output);
+Page_MS ShowInfoPage_MS(ArrayListPtr students, Page_MS page, FILE *output);
 
 /**
  * 根据学号进行查询学生信息

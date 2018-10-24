@@ -85,22 +85,41 @@ int IndexOf_MS(ArrayListPtr students, Integer sno);
  */
 StudentPtr_MS FindByField_MS(ArrayListPtr students, void *field);
 
+void RunListPageModel(ArrayListPtr students);
+
+void RunFindBySnoModel(const ArrayList *students);
+
+void RunFindByNameModel(ArrayListPtr students);
+
+void RunSortByNameModel(ArrayListPtr students);
+
+void RunSortBySnoModel(ArrayListPtr students);
+
+void RunInputStudentInfoModel(ArrayListPtr students);
+
+ArrayListPtr RunOpenDBModel();
+
+void IgnoreInputN();
+
 ArrayListPtr OpenStudentDB_MS(String url) {
-    FILE *db = fopen(url, "w+");
+    FILE *db = fopen(url, "r");
 
     if (!db) {
-        printf("数据库打开失败！");
+        printf("数据库打开失败！正在退出系统...\n");
         exit(OPEN_DB_FIELD);
     }
 
+    fseek(db, 0L, SEEK_END); /* 定位到文件末尾 */
+    long fileLen = ftell(db);
+    fseek(db, 0L, SEEK_SET);
 
-    String json = "";
-    String temp = "";
+    String json = NewString(fileLen + 1);
+    String temp = NewString(fileLen + 1);
     while (fgets(temp, READ_STR_LEN, db))
         strncat(json, temp, strlen(temp));
 
     if (fclose(db) != 0)
-        printf("数据库文件挂起失败！可能会使您的数据遭到破坏");
+        printf("数据库文件挂起失败！可能会使您的数据遭到破坏\n");
 
     return LoadJsonToTheMemory(json);
 }
@@ -158,27 +177,25 @@ void AssignStrValue_MS(String field, const cJSON *json) {
 
 void InputStudentInfo_MS(ArrayListPtr students, FILE *input) {
     AssertDBOpened_MS(students);
-    Integer sno, age;
-    String name = NULL, year = NULL,
-            address = NULL, phone = NULL, email = NULL;
+    StudentPtr_MS student = newEmptyStudent_MS();
+
 
     // 从相应的输入流中录入学生信息
-    fscanf(input, "%d", &sno);
-    fscanf(input, "%s", name);
-    fscanf(input, "%d", &age);
-    fscanf(input, "%s", year);
-    fscanf(input, "%s", address);
-    fscanf(input, "%s", phone);
-    fscanf(input, "%s", email);
+    fscanf(input, "%d", &student->no);
+    fscanf(input, "%s", student->name);
+    fscanf(input, "%d", &student->age);
+    fscanf(input, "%s", student->year);
+    fscanf(input, "%s", student->address);
+    fscanf(input, "%s", student->phone);
+    fscanf(input, "%s", student->email);
 
     while (fgetc(input) != '\n') continue;
-    StudentPtr_MS student = newStudent_MS(sno, name, age, year, address, phone, email);
     add_AL(students, student);
 }
 
 void AssertDBOpened_MS(ArrayListPtr students) {
     if (!students)
-        fprintf(stderr, "数据库未打开，无法录入信息：%d", DB_NOT_OPEN);
+        fprintf(stderr, "数据库未打开，无法录入信息：%d\n", DB_NOT_OPEN);
 }
 
 
@@ -188,7 +205,7 @@ void ShowInfo_MS(ArrayListPtr students, FILE *output) {
     // 打印表头
     ShowTableHeader_MS(output);
 
-    for (int i = 0; i < size_AL(students); i++)
+    for (int i = 1; i <= size_AL(students); i++)
         ShowTableBodyInfo_MS(students, i, output);
 
     fprintf(output, "\n\n");
@@ -202,31 +219,39 @@ void ShowTableBodyInfo_MS(ArrayListPtr students, int index, FILE *output) {
 }
 
 void ShowTableHeader_MS(FILE *output) {
-    fprintf(output, "%10s\t%10s\t%10s\t%10s\t%10s\t%10s\t%10s",
+    fprintf(output, "%10s\t%10s\t%10s\t%10s\t%10s\t%10s\t%10s\n",
             "学号", "姓名", "年龄", "出生年月日", "地址", "电话", "邮箱");
 }
 
 
-void ShowInfoPage_MS(ArrayListPtr students, Page_MS page, FILE *output) {
+Page_MS ShowInfoPage_MS(ArrayListPtr students, Page_MS page, FILE *output) {
     AssertDBOpened_MS(students);
     ShowTableHeader_MS(output);
 
     // 计算输出列表开始输出的索引位置
-    int startPos = page.current * page.pageSize + 1;
-
+    int startPos = (page.currPage - 1) * page.limit;
 
     // 计算出当前页要输出的学生信息数量
     int studentsSize = size_AL(students);
     int stdSize = studentsSize - startPos;
-    int pageSize = page.pageSize;
-    if (stdSize > pageSize) stdSize = pageSize;
+    int pageLimit = page.limit;
+    if (stdSize > pageLimit) stdSize = pageLimit;
 
+    // 输出当前页的信息
     int count = 0;
-    for (int i = startPos; i < stdSize; i++, count++)
+    for (int i = startPos; count < stdSize; i++, count++)
         ShowTableBodyInfo_MS(students, i, output);
 
-    fprintf(output, "%60s %d / %d, 当前页%d条信息", "", pageSize, studentsSize / pageSize, count);
-    fprintf(output, "\n\n");
+    // 计算所有的页数
+    int totalPage = studentsSize / pageLimit;
+    if (studentsSize % pageLimit > 0) totalPage++;
+
+    fprintf(output, "%60s %d / %d, 当前页%d条信息\n\n", "", page.currPage, totalPage, count);
+
+    return (Page_MS) {
+            (page.currPage), totalPage, page.limit,
+            count, page.currPage == 1, page.currPage == totalPage
+    };
 }
 
 StudentPtr_MS FindBySno_MS(ArrayListPtr students, Integer sno) {
@@ -320,7 +345,7 @@ bool UpdateStudentBySno_MS(ArrayListPtr students, Integer sno, StudentPtr_MS stu
         return true;
     }
 
-    printf("指定学号为%d的学生不存在!", sno);
+    printf("指定学号为%d的学生不存在!\n", sno);
     return false;
 }
 
@@ -334,15 +359,16 @@ bool DeleteStudentBySno_MS(ArrayListPtr students, Integer sno, StudentPtr_MS del
         return true;
     }
 
-    printf("指定学号为%d的学生不存在!", sno);
+    printf("指定学号为%d的学生不存在!\n", sno);
     return false;
 }
 
 bool SyncInfo_MS(ArrayListPtr students, String url) {
-    AssertDBOpened_MS(students);
+    if (!students) return false;
+
     FILE *db = fopen(url, "w+");
     if (!db) {
-        fprintf(stderr, "数据库文件链接失败！");
+        fprintf(stderr, "数据库文件链接失败！\n");
         return false;
     }
 
@@ -352,19 +378,19 @@ bool SyncInfo_MS(ArrayListPtr students, String url) {
     cJSON_AddItemToObject(root, STUDENTS_MS, rows);
 
     cJSON *row;
-    for (int i = 0; i < students->size; ++i) {
+    for (int i = 1; i <= students->size; i++) {
         row = cJSON_CreateObject();
         cJSON_AddItemToArray(rows, row);
 
         // 将结构数据写入到Json对象中
         StudentPtr_MS studentTemp = get_AL(students, i);
-        cJSON_AddItemToObject(row, SNO_MS,     cJSON_CreateNumber(studentTemp->no));
-        cJSON_AddItemToObject(row, NAME_MS,    cJSON_CreateString(studentTemp->name));
-        cJSON_AddItemToObject(row, AGE_MS,     cJSON_CreateNumber(studentTemp->no));
-        cJSON_AddItemToObject(row, YEAR_MS,    cJSON_CreateString(studentTemp->year));
+        cJSON_AddItemToObject(row, SNO_MS, cJSON_CreateNumber(studentTemp->no));
+        cJSON_AddItemToObject(row, NAME_MS, cJSON_CreateString(studentTemp->name));
+        cJSON_AddItemToObject(row, AGE_MS, cJSON_CreateNumber(studentTemp->age));
+        cJSON_AddItemToObject(row, YEAR_MS, cJSON_CreateString(studentTemp->year));
         cJSON_AddItemToObject(row, ADDRESS_MS, cJSON_CreateString(studentTemp->address));
-        cJSON_AddItemToObject(row, PHONE_MS,   cJSON_CreateString(studentTemp->phone));
-        cJSON_AddItemToObject(row, EMAIL_MS,   cJSON_CreateString(studentTemp->email));
+        cJSON_AddItemToObject(row, PHONE_MS, cJSON_CreateString(studentTemp->phone));
+        cJSON_AddItemToObject(row, EMAIL_MS, cJSON_CreateString(studentTemp->email));
     }
 
     // 向文件之中写入数据文件
@@ -372,7 +398,7 @@ bool SyncInfo_MS(ArrayListPtr students, String url) {
     fprintf(db, "%s", jsonResult);
 
     if (fclose(db) != 0) {
-        fprintf(stderr, "数据库链接未成功关闭，有可能会对您的数据造成威胁");
+        fprintf(stderr, "数据库链接未成功关闭，有可能会对您的数据造成威胁\n");
     }
 
     return true;
@@ -381,20 +407,140 @@ bool SyncInfo_MS(ArrayListPtr students, String url) {
 void ShowMenu_MS(FILE *output) {
     fprintf(output, "===========================================================\n");
     fprintf(output, "|                  欢迎使用学生信息系统                      |\n");
-    fprintf(output, "|              1）链接数据库                                |\n");
-    fprintf(output, "|              2）录入学生信息                              |\n");
-    fprintf(output, "|              3）浏览全部学生信息                           |\n");
-    fprintf(output, "|              4）分页浏览学生信息                           |\n");
-    fprintf(output, "|              5）根据学号查询学生信息                       |\n");
-    fprintf(output, "|              6）根据姓名查询学生信息                       |\n");
-    fprintf(output, "|              7）根据学号对学生信息进行排序                  |\n");
-    fprintf(output, "|              8）根据姓名对学生信息进行排序                  |\n");
-    fprintf(output, "|              9）根据学号更新学生信息                       |\n");
-    fprintf(output, "|             10）根据学号删除学生信息                       |\n");
-    fprintf(output, "|             11）同步数据库数据信息                         |\n");
+    fprintf(output, "|              a）链接数据库                                |\n");
+    fprintf(output, "|              b）录入学生信息                              |\n");
+    fprintf(output, "|              c）浏览全部学生信息                           |\n");
+    fprintf(output, "|              d）分页浏览学生信息                           |\n");
+    fprintf(output, "|              e）根据学号查询学生信息                       |\n");
+    fprintf(output, "|              f）根据姓名查询学生信息                       |\n");
+    fprintf(output, "|              g）根据学号对学生信息进行排序                  |\n");
+    fprintf(output, "|              h）根据姓名对学生信息进行排序                  |\n");
+    fprintf(output, "|              i）根据学号更新学生信息                       |\n");
+    fprintf(output, "|              j）根据学号删除学生信息                       |\n");
+    fprintf(output, "|              k）同步数据库数据信息                         |\n");
+    fprintf(output, "|                                                         |\n");
+    fprintf(output, "| 序号使用相应功能，'q'退出系统                               |\n");
     fprintf(output, "===========================================================\n");
 }
 
+static char *const url = "./students.json";
+
 void StudentInfoSystemDriver_MS(void) {
     ShowMenu_MS(stdout);
+    fprintf(stdout, "\n\n请输入您需要的操作\n\n");
+    ArrayListPtr students = NULL;
+    int item = 0;
+    while (true) {
+        fprintf(stdout, "admin@student-ms:$ ");
+        item = getchar();
+        IgnoreInputN();
+
+        if (item == 'q') {
+            SyncInfo_MS(students, url);
+            break;
+        }
+
+        switch (item) {
+            case 'a':
+                students = RunOpenDBModel();
+                break;
+            case 'b':
+                RunInputStudentInfoModel(students);
+                break;
+            case 'c':
+                ShowInfo_MS(students, stdout);
+                break;
+            case 'd':
+                RunListPageModel(students);
+                break;
+            case 'e':
+                RunFindBySnoModel(students);
+                break;
+            case 'f':
+                RunFindByNameModel(students);
+                break;
+            case 'g':
+                RunSortBySnoModel(students);
+                break;
+            case 'h':
+                RunSortByNameModel(students);
+                break;
+            case 'i':
+                break;
+            case 'j':
+                break;
+            case 'k':
+                break;
+            default:
+                fprintf(stdout, "输入不合法\n");
+        }
+    }
+}
+
+void IgnoreInputN() { while (getchar() != '\n') continue; }
+
+ArrayListPtr RunOpenDBModel() {
+    ArrayListPtr students = OpenStudentDB_MS(url);
+    if (students) printf("打开完成\n");
+    else {
+        printf("打开数据库失败，正在退出系统...\n");
+        exit(EXIT_FAILURE);
+    }
+    return students;
+}
+
+void RunInputStudentInfoModel(ArrayListPtr students) {
+    do {
+        fprintf(stdout, "请输入学生信息：[学号 姓名 年龄 出生年月 地址 电话 邮箱]\n");
+        InputStudentInfo_MS(students, stdin);
+        fprintf(stdout, "输入完成\n是否继续输入?(y/n)：");
+    } while (getchar() == 'y');
+}
+
+void RunSortBySnoModel(ArrayListPtr students) {
+
+}
+
+void RunSortByNameModel(ArrayListPtr students) {
+
+}
+
+
+void RunFindByNameModel(ArrayListPtr students) {
+
+}
+
+void RunFindBySnoModel(const ArrayList *students) {
+    int item;
+    int sno;
+    do {
+        fprintf(stdout, "请输入学号：\n");
+
+    } while ((item = fscanf(stdin, "%d", &sno)));
+    FindBySno_MS(students, 1);
+}
+
+void RunListPageModel(ArrayListPtr students) {
+    // 选项初始值用于显示第一页数据
+    int item = '0';
+
+    // 初始化page对象
+    Page_MS page = {
+            1, 0, 10, 0, true, false
+    };
+    do {
+        if (item == 'n') {
+            if (page.last) printf("当前页是最后一页!\n");
+            else
+                page = ShowInfoPage_MS(students, page, stdout);
+        } else if (item == 'p') {
+            if (page.first) printf("当前页为第一页");
+            else
+                page = ShowInfoPage_MS(students, page, stdout);
+        } else if (item == '0') {
+            page.currPage = 1;
+            page = ShowInfoPage_MS(students, page, stdout);
+        }
+        fprintf(stdout, "输入n获取下一页，输入p获取上一页，其他字符退出\n");
+    } while ((item = getchar()) == 'n' || item == 'p');
 }

@@ -8,12 +8,12 @@
 StudentPtr_MS newEmptyStudent_MS() {
     StudentPtr_MS student = malloc(sizeof(Student_MS));
     student->no = EMPTY_SNO;
-    student->name = "";
+    student->name = NewString(20);
     student->age = 0;
-    student->year = "";
-    student->address = "";
-    student->phone = "";
-    student->email = "";
+    student->year = NewString(20);
+    student->address = NewString(100);
+    student->phone = NewString(20);
+    student->email = NewString(50);
     return student;
 }
 
