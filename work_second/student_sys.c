@@ -57,17 +57,6 @@ void ShowTableHeader_MS(FILE *output);
 void ShowTableBodyInfo_MS(ArrayListPtr students, int index, FILE *output);
 
 /**
- * 根据学生名称进行比较
- *
- * @param currName 当前的学生姓名
- * @param nextName 下一个学生的姓名
- * @return currName > nextName  返回 1
- *         currName == nextName 返回 0
- *         currName < nextName  返回-1
- */
-int CompareByName_MS(String currName, String nextName);
-
-/**
  * 根据学号查询学生信息在集合中的索引位置
  *
  * @param students 全体学生集合
@@ -173,6 +162,11 @@ void InputStudentInfo_MS(ArrayListPtr students, FILE *input) {
     fscanf(input, "%s", student->email);
 
     while (fgetc(input) != '\n') continue;
+
+    if (FindBySno_MS(students, student->no)) {
+        printf("录入信息失败，学号为%d的学生已经存在！\n", student->no);
+        return;
+    }
     add_AL(students, student);
 }
 
@@ -257,25 +251,22 @@ StudentPtr_MS FindBySno_MS(ArrayListPtr students, Integer sno) {
     return NULL;
 }
 
-int CompareByName_MS(String currName, String nextName) {
-    size_t first = strlen(currName);
-    size_t second = strlen(nextName);
-    if (first != second) return -1;
-
-    return strncmp(currName, nextName, first);
-}
-
-StudentPtr_MS FindByName_MS(ArrayListPtr students, String name) {
+ArrayListPtr FindByName_MS(ArrayListPtr students, String name) {
     AssertDBOpened_MS(students);
+    ArrayListPtr arrayList = newArrayList();
 
+    regex_t regex;
+    regmatch_t regMatch[1];
+    const char *pattern = name;
     for (int i = 1; i <= size_AL(students); i++) {
         StudentPtr_MS studentTemp = get_AL(students, i);
         if (!studentTemp) continue;
 
-        if (CompareByName_MS(studentTemp->name, name) == 0)
-            return studentTemp;
+        regcomp(&regex, pattern, REG_ICASE);
+        if (regexec(&regex, studentTemp->name, 1, regMatch, 0) == 0)
+            add_AL(arrayList, studentTemp);
     }
-    return NULL;
+    return arrayList;
 }
 
 ArrayListPtr SortBySno_MS(ArrayListPtr students, Order_MS order) {
@@ -305,14 +296,15 @@ ArrayListPtr SortByName_MS(ArrayListPtr students, Order_MS order) {
     ArrayListPtr sortedList = newArrayList();
     union_AL(sortedList, students);
 
-    for (int i = 1; i <= size_AL(sortedList); ++i) {
-        for (int j = i; j <= size_AL(sortedList); ++j) {
+    for (int i = 1; i <= size_AL(sortedList); i++) {
+        for (int j = i + 1; j <= size_AL(sortedList); j++) {
             StudentPtr_MS curr = get_AL(sortedList, i);
             StudentPtr_MS next = get_AL(sortedList, j);
 
-            int compareNameRs = CompareByName_MS(curr->name, next->name);
-            bool compareRs = compareNameRs == 1;
-            if (order == ASC) compareRs = compareNameRs == -1;
+            // 比较两个字符串的大小
+            int compareNameRs = strcmp(curr->name, next->name);
+            bool compareRs = compareNameRs > 0;
+            if (order == ASC) compareRs = compareNameRs < 0;
 
             if (compareRs) continue;
             replace_AL(sortedList, i, next);

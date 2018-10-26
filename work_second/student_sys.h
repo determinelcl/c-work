@@ -84,7 +84,7 @@ StudentPtr_MS FindBySno_MS(ArrayListPtr students, Integer sno);
  * @param name 学生姓名
  * @return 返回成功查找的学生结构体，如果不存在则返回NULL
  */
-StudentPtr_MS FindByName_MS(ArrayListPtr students, String name);
+ArrayListPtr FindByName_MS(ArrayListPtr students, String name);
 
 /**
  * 根据学生编号进行排序

@@ -47,7 +47,7 @@ void StudentInfoSystemDriver_MS(void) {
                 RunDeleteStudentModel(students);
                 break;
             case 'k':
-                SyncInfo_MS(students, DB_URL);
+                printf("%s\n", SyncInfo_MS(students, DB_URL) ? "同步完成！" : "同步失败！");
                 break;
             default:
                 if (item != '\n')
@@ -146,7 +146,7 @@ void RunSortBySnoModel(ArrayListPtr students) {
     ArrayListPtr sortedList;
     fprintf(stdout, "按照学号排序，a：升序，d：降序，其他字符退出\n");
     do {
-        fprintf(stdout, "sort@model:$ \n");
+        fprintf(stdout, "sort@model:$ ");
 
         item = getchar();
         IgnoreInputN();
@@ -163,7 +163,6 @@ void RunSortBySnoModel(ArrayListPtr students) {
 
         ShowInfo_MS(sortedList, stdout);
     } while (true);
-    IgnoreInputN();
 }
 
 void RunSortByNameModel(ArrayListPtr students) {
@@ -171,7 +170,7 @@ void RunSortByNameModel(ArrayListPtr students) {
     fprintf(stdout, "按照学生姓名排序，a：升序，d：降序，其他字符退出\n");
     ArrayListPtr sortedList;
     do {
-        fprintf(stdout, "sort@model:$ \n");
+        fprintf(stdout, "sort@model:$ ");
         item = getchar();
         IgnoreInputN();
 
@@ -179,15 +178,14 @@ void RunSortByNameModel(ArrayListPtr students) {
 
         if (item == 'a') {
             fprintf(stdout, "按照学生姓名进行升序排序，排序结果：\n");
-            sortedList = SortBySno_MS(students, ASC);
+            sortedList = SortByName_MS(students, ASC);
         } else {
             fprintf(stdout, "按照学生姓名进行降序排序，排序结果：\n");
-            sortedList = SortBySno_MS(students, DESC);
+            sortedList = SortByName_MS(students, DESC);
         }
 
         ShowInfo_MS(sortedList, stdout);
     } while (true);
-    IgnoreInputN();
 }
 
 
@@ -200,10 +198,13 @@ void RunFindByNameModel(ArrayListPtr students) {
 
         fscanf(stdin, "%s", name);
         IgnoreInputN();
-        StudentPtr_MS student = FindByName_MS(students, name);
-        if (student)
-            ToString_MS(student, stdout);
-        else fprintf(stdout, "姓名为%s的学生信息不存在\n", name);
+        ArrayListPtr student = FindByName_MS(students, name);
+        if (student) {
+            if (isEmpty_AL(student))
+                printf("查询结果为空，不存在姓名为%s的学生\n\n", name);
+            else
+                ShowInfo_MS(student, stdout);
+        } else fprintf(stdout, "姓名为%s的学生信息不存在\n", name);
 
         fprintf(stdout, "是否继续输入?(y/n)：");
     } while ((item = getchar()) == 'y');
