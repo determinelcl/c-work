@@ -32,11 +32,11 @@ StudentPtr_MS newStudent_MS(Integer sno, String name,
 }
 
 void ToString_MS(StudentPtr_MS student, FILE *output) {
-    fprintf(output, "学号：\t\t%d\n", student->no);
+    fprintf(output, "\n学号：\t\t%d\n", student->no);
     fprintf(output, "姓名：\t\t%s\n", student->name);
     fprintf(output, "年龄：\t\t%d\n", student->age);
     fprintf(output, "出生年月：\t%s\n", student->year);
     fprintf(output, "地址：\t\t%s\n", student->address);
     fprintf(output, "电话：\t\t%s\n", student->phone);
-    fprintf(output, "邮箱：\t\t%s\n", student->email);
+    fprintf(output, "邮箱：\t\t%s\n\n", student->email);
 }

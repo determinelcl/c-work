@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "staff.h"
 #include "classroom.h"
-#include "student_sys.h"
+#include "sys_driver.h"
 
 int main() {
     TestStaff();

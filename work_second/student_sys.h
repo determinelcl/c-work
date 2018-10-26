@@ -12,6 +12,7 @@
 #include "array_list.h"
 #include "cJSON.h"
 #include <string.h>
+#include <regex.h>
 
 /**
  * 封装分页显示的结构体
@@ -92,7 +93,7 @@ StudentPtr_MS FindByName_MS(ArrayListPtr students, String name);
  * @param order 排序方式，默认值为升序排序
  * @return 排序完成的新的学生集合
  */
-void SortBySno_MS(ArrayListPtr students, Order_MS order);
+ArrayListPtr SortBySno_MS(ArrayListPtr students, Order_MS order);
 
 /**
  * 根据学生姓名进行排序
@@ -101,7 +102,7 @@ void SortBySno_MS(ArrayListPtr students, Order_MS order);
  * @param order 排序方式，默认值为升序排序
  * @return 排序完成的新的学生集合
  */
-void SortByName_MS(ArrayListPtr students, Order_MS order);
+ArrayListPtr SortByName_MS(ArrayListPtr students, Order_MS order);
 
 /**
  * 根据学号更新学生信息
@@ -135,10 +136,5 @@ bool SyncInfo_MS(ArrayListPtr students, String url);
  * @param output 输出流
  */
 void ShowMenu_MS(FILE *output);
-
-/**
- * 学生信息系统驱动程序
- */
-void StudentInfoSystemDriver_MS(void);
 
 #endif //C_WORK_STUDENT_SYS_H

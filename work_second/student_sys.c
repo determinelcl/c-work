@@ -85,22 +85,6 @@ int IndexOf_MS(ArrayListPtr students, Integer sno);
  */
 StudentPtr_MS FindByField_MS(ArrayListPtr students, void *field);
 
-void RunListPageModel(ArrayListPtr students);
-
-void RunFindBySnoModel(const ArrayList *students);
-
-void RunFindByNameModel(ArrayListPtr students);
-
-void RunSortByNameModel(ArrayListPtr students);
-
-void RunSortBySnoModel(ArrayListPtr students);
-
-void RunInputStudentInfoModel(ArrayListPtr students);
-
-ArrayListPtr RunOpenDBModel();
-
-void IgnoreInputN();
-
 ArrayListPtr OpenStudentDB_MS(String url) {
     FILE *db = fopen(url, "r");
 
@@ -179,7 +163,6 @@ void InputStudentInfo_MS(ArrayListPtr students, FILE *input) {
     AssertDBOpened_MS(students);
     StudentPtr_MS student = newEmptyStudent_MS();
 
-
     // 从相应的输入流中录入学生信息
     fscanf(input, "%d", &student->no);
     fscanf(input, "%s", student->name);
@@ -213,13 +196,18 @@ void ShowInfo_MS(ArrayListPtr students, FILE *output) {
 
 void ShowTableBodyInfo_MS(ArrayListPtr students, int index, FILE *output) {
     StudentPtr_MS studentTemp = get_AL(students, index);
-    fprintf(output, "%10d\t%10s\t%10d\t%10s\t%10s\t%10s\t%10s\n",
+    if (!studentTemp) {
+        fprintf(output, "第%d条数据出现了异常\n", index);
+        return;
+    }
+
+    fprintf(output, "%-8d%-20s%-10d%-15s%-10s%-20s%-28s\n",
             studentTemp->no, studentTemp->name, studentTemp->age, studentTemp->year,
             studentTemp->address, studentTemp->phone, studentTemp->email);
 }
 
 void ShowTableHeader_MS(FILE *output) {
-    fprintf(output, "%10s\t%10s\t%10s\t%10s\t%10s\t%10s\t%10s\n",
+    fprintf(output, "%-11s%-22s%-13s%-22s%-12s%-23s%-10s\n",
             "学号", "姓名", "年龄", "出生年月日", "地址", "电话", "邮箱");
 }
 
@@ -239,15 +227,16 @@ Page_MS ShowInfoPage_MS(ArrayListPtr students, Page_MS page, FILE *output) {
 
     // 输出当前页的信息
     int count = 0;
-    for (int i = startPos; count < stdSize; i++, count++)
+    for (int i = startPos + 1; count < stdSize; i++, count++)
         ShowTableBodyInfo_MS(students, i, output);
 
     // 计算所有的页数
     int totalPage = studentsSize / pageLimit;
     if (studentsSize % pageLimit > 0) totalPage++;
 
-    fprintf(output, "%60s %d / %d, 当前页%d条信息\n\n", "", page.currPage, totalPage, count);
+    fprintf(output, "%38s %d / %d, 当前页%d条信息\n\n", "", page.currPage, totalPage, count);
 
+    // 返回一个更新的page对象
     return (Page_MS) {
             (page.currPage), totalPage, page.limit,
             count, page.currPage == 1, page.currPage == totalPage
@@ -257,10 +246,9 @@ Page_MS ShowInfoPage_MS(ArrayListPtr students, Page_MS page, FILE *output) {
 StudentPtr_MS FindBySno_MS(ArrayListPtr students, Integer sno) {
     AssertDBOpened_MS(students);
 
-    for (int i = 0; i < size_AL(students); i++) {
+    for (int i = 1; i <= size_AL(students); i++) {
         StudentPtr_MS studentTemp = get_AL(students, i);
         if (!studentTemp) continue;
-
 
         if (studentTemp->no == sno)
             return studentTemp;
@@ -272,7 +260,7 @@ StudentPtr_MS FindBySno_MS(ArrayListPtr students, Integer sno) {
 int CompareByName_MS(String currName, String nextName) {
     size_t first = strlen(currName);
     size_t second = strlen(nextName);
-    if (first != second) return false;
+    if (first != second) return -1;
 
     return strncmp(currName, nextName, first);
 }
@@ -280,10 +268,9 @@ int CompareByName_MS(String currName, String nextName) {
 StudentPtr_MS FindByName_MS(ArrayListPtr students, String name) {
     AssertDBOpened_MS(students);
 
-    for (int i = 0; i < size_AL(students); i++) {
+    for (int i = 1; i <= size_AL(students); i++) {
         StudentPtr_MS studentTemp = get_AL(students, i);
         if (!studentTemp) continue;
-
 
         if (CompareByName_MS(studentTemp->name, name) == 0)
             return studentTemp;
@@ -291,38 +278,48 @@ StudentPtr_MS FindByName_MS(ArrayListPtr students, String name) {
     return NULL;
 }
 
-void SortBySno_MS(ArrayListPtr students, Order_MS order) {
-    for (int i = 1; i <= size_AL(students); ++i) {
-        for (int j = i; j <= size_AL(students); ++j) {
-            StudentPtr_MS curr = get_AL(students, i);
-            StudentPtr_MS next = get_AL(students, j);
+ArrayListPtr SortBySno_MS(ArrayListPtr students, Order_MS order) {
+    AssertDBOpened_MS(students);
+    ArrayListPtr sortedList = newArrayList();
+    union_AL(sortedList, students);
+
+    for (int i = 1; i <= size_AL(sortedList); ++i) {
+        for (int j = i; j <= size_AL(sortedList); ++j) {
+            StudentPtr_MS curr = get_AL(sortedList, i);
+            StudentPtr_MS next = get_AL(sortedList, j);
 
             bool compareRs = curr->no > next->no;
             if (order == ASC) compareRs = curr->no < next->no;
 
             if (compareRs) continue;
 
-            replace_AL(students, i, next);
-            replace_AL(students, j, curr);
+            replace_AL(sortedList, i, next);
+            replace_AL(sortedList, j, curr);
         }
     }
+    return sortedList;
 }
 
-void SortByName_MS(ArrayListPtr students, Order_MS order) {
-    for (int i = 1; i <= size_AL(students); ++i) {
-        for (int j = i; j <= size_AL(students); ++j) {
-            StudentPtr_MS curr = get_AL(students, i);
-            StudentPtr_MS next = get_AL(students, j);
+ArrayListPtr SortByName_MS(ArrayListPtr students, Order_MS order) {
+    AssertDBOpened_MS(students);
+    ArrayListPtr sortedList = newArrayList();
+    union_AL(sortedList, students);
+
+    for (int i = 1; i <= size_AL(sortedList); ++i) {
+        for (int j = i; j <= size_AL(sortedList); ++j) {
+            StudentPtr_MS curr = get_AL(sortedList, i);
+            StudentPtr_MS next = get_AL(sortedList, j);
 
             int compareNameRs = CompareByName_MS(curr->name, next->name);
             bool compareRs = compareNameRs == 1;
             if (order == ASC) compareRs = compareNameRs == -1;
 
             if (compareRs) continue;
-            replace_AL(students, i, next);
-            replace_AL(students, j, curr);
+            replace_AL(sortedList, i, next);
+            replace_AL(sortedList, j, curr);
         }
     }
+    return sortedList;
 }
 
 int IndexOf_MS(ArrayListPtr students, Integer sno) {
@@ -395,6 +392,11 @@ bool SyncInfo_MS(ArrayListPtr students, String url) {
 
     // 向文件之中写入数据文件
     String jsonResult = cJSON_Print(root);
+    // 这里在写入文件之前应该对文件进行压缩
+
+
+
+
     fprintf(db, "%s", jsonResult);
 
     if (fclose(db) != 0) {
@@ -421,126 +423,4 @@ void ShowMenu_MS(FILE *output) {
     fprintf(output, "|                                                         |\n");
     fprintf(output, "| 序号使用相应功能，'q'退出系统                               |\n");
     fprintf(output, "===========================================================\n");
-}
-
-static char *const url = "./students.json";
-
-void StudentInfoSystemDriver_MS(void) {
-    ShowMenu_MS(stdout);
-    fprintf(stdout, "\n\n请输入您需要的操作\n\n");
-    ArrayListPtr students = NULL;
-    int item = 0;
-    while (true) {
-        fprintf(stdout, "admin@student-ms:$ ");
-        item = getchar();
-        IgnoreInputN();
-
-        if (item == 'q') {
-            SyncInfo_MS(students, url);
-            break;
-        }
-
-        switch (item) {
-            case 'a':
-                students = RunOpenDBModel();
-                break;
-            case 'b':
-                RunInputStudentInfoModel(students);
-                break;
-            case 'c':
-                ShowInfo_MS(students, stdout);
-                break;
-            case 'd':
-                RunListPageModel(students);
-                break;
-            case 'e':
-                RunFindBySnoModel(students);
-                break;
-            case 'f':
-                RunFindByNameModel(students);
-                break;
-            case 'g':
-                RunSortBySnoModel(students);
-                break;
-            case 'h':
-                RunSortByNameModel(students);
-                break;
-            case 'i':
-                break;
-            case 'j':
-                break;
-            case 'k':
-                break;
-            default:
-                fprintf(stdout, "输入不合法\n");
-        }
-    }
-}
-
-void IgnoreInputN() { while (getchar() != '\n') continue; }
-
-ArrayListPtr RunOpenDBModel() {
-    ArrayListPtr students = OpenStudentDB_MS(url);
-    if (students) printf("打开完成\n");
-    else {
-        printf("打开数据库失败，正在退出系统...\n");
-        exit(EXIT_FAILURE);
-    }
-    return students;
-}
-
-void RunInputStudentInfoModel(ArrayListPtr students) {
-    do {
-        fprintf(stdout, "请输入学生信息：[学号 姓名 年龄 出生年月 地址 电话 邮箱]\n");
-        InputStudentInfo_MS(students, stdin);
-        fprintf(stdout, "输入完成\n是否继续输入?(y/n)：");
-    } while (getchar() == 'y');
-}
-
-void RunSortBySnoModel(ArrayListPtr students) {
-
-}
-
-void RunSortByNameModel(ArrayListPtr students) {
-
-}
-
-
-void RunFindByNameModel(ArrayListPtr students) {
-
-}
-
-void RunFindBySnoModel(const ArrayList *students) {
-    int item;
-    int sno;
-    do {
-        fprintf(stdout, "请输入学号：\n");
-
-    } while ((item = fscanf(stdin, "%d", &sno)));
-    FindBySno_MS(students, 1);
-}
-
-void RunListPageModel(ArrayListPtr students) {
-    // 选项初始值用于显示第一页数据
-    int item = '0';
-
-    // 初始化page对象
-    Page_MS page = {
-            1, 0, 10, 0, true, false
-    };
-    do {
-        if (item == 'n') {
-            if (page.last) printf("当前页是最后一页!\n");
-            else
-                page = ShowInfoPage_MS(students, page, stdout);
-        } else if (item == 'p') {
-            if (page.first) printf("当前页为第一页");
-            else
-                page = ShowInfoPage_MS(students, page, stdout);
-        } else if (item == '0') {
-            page.currPage = 1;
-            page = ShowInfoPage_MS(students, page, stdout);
-        }
-        fprintf(stdout, "输入n获取下一页，输入p获取上一页，其他字符退出\n");
-    } while ((item = getchar()) == 'n' || item == 'p');
 }
